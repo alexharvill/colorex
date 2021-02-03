@@ -20,6 +20,17 @@ M_XYZ_TO_RGB = np.linalg.inv(M_RGB_TO_XYZ)
 M_RGB_TO_XYZ_T = np.ascontiguousarray(M_RGB_TO_XYZ.T)
 M_XYZ_TO_RGB_T = np.ascontiguousarray(M_XYZ_TO_RGB.T)
 
+#https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.601_conversion
+YCBCR_MIN, YCBCR_YMAX, YCBCR_CMAX, YCBCR_OFFSET = 16.0, 235.0, 240.0, 128.0
+M_RGB_TO_YCBCR = np.array([
+    [65.481, 128.553, 24.966],
+    [-37.797, -74.203, 112.0],
+    [112.0, -93.786, -18.214],
+])
+M_YCBCR_TO_RGB = np.linalg.inv(M_RGB_TO_YCBCR)
+M_RGB_TO_YCBCR_T = np.ascontiguousarray(M_RGB_TO_YCBCR.T)
+M_YCBCR_TO_RGB_T = np.ascontiguousarray(M_YCBCR_TO_RGB.T)
+
 D50_TO_D65 = np.eye(3, dtype=np.float32)
 D50_TO_D65[0, 0] = 0.85027254
 D50_TO_D65[1, 1] = 1.02490389
@@ -34,7 +45,8 @@ class Space(enum.Enum):
   XYZ = 2
   xyY = 3
   LAB = 4
-  LUM = 5
+  YCbCr = 5
+  LUM = 6
 
 
 S = Space

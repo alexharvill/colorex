@@ -12,6 +12,12 @@ from colorex.cex_constants import Space as S
 
 cex_keras = None
 
+# import cv2
+
+# def save_image_cv2(path, img):
+#   'save image to disk'
+#   cv2.imwrite(str(path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
 
 class TestColorexKeras(unittest.TestCase):
   'to be run via unittest discovery'
@@ -52,10 +58,21 @@ class TestColorexKeras(unittest.TestCase):
     srgb2 = skimage.color.xyz2rgb(xyz)
     srgb3 = skimage.color.lab2rgb(lab)
 
+    ycbcr = skimage.color.rgb2ycbcr(rgb)
+    rgb2 = skimage.color.ycbcr2rgb(ycbcr)
+    ycbcr[..., 0] -= cex_keras.YCBCR_MIN
+    ycbcr[..., 0] /= cex_keras.YCBCR_YMAX - cex_keras.YCBCR_MIN
+    ycbcr[..., 1] -= cex_keras.YCBCR_MIN
+    ycbcr[..., 1] /= cex_keras.YCBCR_CMAX - cex_keras.YCBCR_MIN
+    ycbcr[..., 2] -= cex_keras.YCBCR_MIN
+    ycbcr[..., 2] /= cex_keras.YCBCR_CMAX - cex_keras.YCBCR_MIN
+
     xyy = cex_numpy.xyz_to_xyy(xyz)
     xyz3 = cex_numpy.xyy_to_xyz(xyy)
 
     for s_from, s_to, source, target in [
+        (S.RGB, S.YCbCr, rgb, ycbcr),
+        (S.YCbCr, S.RGB, ycbcr, rgb2),
         (S.RGB, S.SRGB, rgb, srgb),
         (S.SRGB, S.RGB, srgb, rgb),
         (S.SRGB, S.XYZ, srgb, xyz),

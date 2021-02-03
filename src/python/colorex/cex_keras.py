@@ -11,6 +11,12 @@ from colorex.cex_constants import (
     XYZ_D65_2A_WHITEPOINT,
     M_RGB_TO_XYZ_T,
     M_XYZ_TO_RGB_T,
+    M_RGB_TO_YCBCR_T,
+    M_YCBCR_TO_RGB_T,
+    YCBCR_MIN,
+    YCBCR_YMAX,
+    YCBCR_CMAX,
+    YCBCR_OFFSET,
 )
 
 from colorex.cex_constants import S
@@ -177,6 +183,62 @@ def xyy_to_xyz(xyY):
   return K.stack([X, Y, Z], axis=-1)
 
 
+def rgb_to_ycbcr(rgb):
+  '''
+  convert from rgb color space to YCbCr
+    rgb: rgb color space
+    YCbCr: luminance with 2 chroma channels
+  https://en.wikipedia.org/wiki/YCbCr
+  http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_xyY.html
+  '''
+
+  ycbcr = K.dot(rgb, K.constant(M_RGB_TO_YCBCR_T))
+
+  y, cb, cr = ycbcr[..., 0], ycbcr[..., 1], ycbcr[..., 2]
+
+  # y += YCBCR_MIN
+  # y -= YCBCR_MIN
+  y /= YCBCR_YMAX - YCBCR_MIN
+
+  cb += YCBCR_OFFSET
+  cb -= YCBCR_MIN
+  cb /= YCBCR_CMAX - YCBCR_MIN
+
+  cr += YCBCR_OFFSET
+  cr -= YCBCR_MIN
+  cr /= YCBCR_CMAX - YCBCR_MIN
+
+  return K.stack([y, cb, cr], axis=-1)
+
+
+def ycbcr_to_rgb(ycbcr):
+  '''
+  convert from YCbCr color space to srgb
+    YCbCr: luminance with 2 chroma channels
+    srgb: rgb color space
+  https://en.wikipedia.org/wiki/YCbCr
+  http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_xyY.html
+  '''
+
+  y, cb, cr = ycbcr[..., 0], ycbcr[..., 1], ycbcr[..., 2]
+
+  y *= YCBCR_YMAX - YCBCR_MIN
+  # y += YCBCR_MIN
+  # y -= YCBCR_MIN
+
+  cb *= YCBCR_CMAX - YCBCR_MIN
+  cb += YCBCR_MIN
+  cb -= YCBCR_OFFSET
+
+  cr *= YCBCR_CMAX - YCBCR_MIN
+  cr += YCBCR_MIN
+  cr -= YCBCR_OFFSET
+
+  ycbcr = K.stack([y, cb, cr], axis=-1)
+
+  return K.dot(ycbcr, K.constant(M_YCBCR_TO_RGB_T))
+
+
 ####  following transforms are macros using the above primitive transforms
 
 
@@ -286,6 +348,7 @@ TRANSFORMS = {
     (S.RGB, S.LAB): rgb_to_lab,
     (S.RGB, S.LUM): rgb_to_luminance,
     (S.RGB, S.xyY): rgb_to_xyy,
+    (S.RGB, S.YCbCr): rgb_to_ycbcr,
     (S.XYZ, S.RGB): xyz_to_rgb,
     (S.XYZ, S.LAB): xyz_to_lab,
     (S.XYZ, S.SRGB): xyz_to_srgb,
@@ -301,6 +364,7 @@ TRANSFORMS = {
     (S.xyY, S.XYZ): xyy_to_xyz,
     (S.xyY, S.LAB): xyy_to_lab,
     (S.xyY, S.LUM): None,
+    (S.YCbCr, S.RGB): ycbcr_to_rgb,
 }
 
 
@@ -325,7 +389,7 @@ def color_space(from_space, to_space, values):
 def color_space_numpy(from_space, to_space, values):
   'numpy wrapper for backend color transform'
   result = color_space(from_space, to_space, K.constant(values))
-  if not isinstance(values, np.ndarray):
+  if hasattr(result, 'numpy'):
     result = result.numpy()
   return result
 
