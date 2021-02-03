@@ -32,5 +32,9 @@ class Space(enum.Enum):
   RGB = 0
   SRGB = 1
   XYZ = 2
-  LAB = 3
-  LUM = 4
+  xyY = 3
+  LAB = 4
+  LUM = 5
+
+
+S = Space
