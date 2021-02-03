@@ -96,6 +96,62 @@ def rgb_to_luminance(rgb, luma_weights=REC_709_LUMA_WEIGHTS):
   return r * luma_weights[0] + g * luma_weights[1] + b * luma_weights[2]
 
 
+def xyz_to_xyy(XYZ):
+  '''
+  convert from XYZ color space to xyY
+    XYZ: consistent units for each component
+    xyY: normalized chromaticity with xy in 0-1, Y in 0-inf
+  https://en.wikipedia.org/wiki/CIE_1931_color_space
+  http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_xyY.html
+  '''
+
+  X, Y, Z = XYZ[..., 0], XYZ[..., 1], XYZ[..., 2]
+
+  XYZ_sum = X + Y + Z
+
+  invalid_mask = (XYZ_sum < SMALL_COMPONENT_VALUE).astype(np.float32)
+  valid_mask = 1.0 - invalid_mask
+
+  # if xyz_sum == 0, set to 1.0
+  XYZ_sum = invalid_mask + valid_mask * XYZ_sum
+
+  x = X / XYZ_sum
+  y = Y / XYZ_sum
+
+  x *= valid_mask
+  y *= valid_mask
+  Y *= valid_mask
+
+  return np.stack([x, y, Y], axis=-1)
+
+
+def xyy_to_xyz(xyY):
+  '''
+  convert from xyY color space to XYZ
+    xyY: normalized chromaticity with xy in 0-1, Y in 0-inf
+    XYZ: consistent units for each component
+  https://en.wikipedia.org/wiki/CIE_1931_color_space
+  http://www.brucelindbloom.com/index.html?Eqn_xyY_to_XYZ.html
+  '''
+
+  x, y, Y = xyY[..., 0], xyY[..., 1], xyY[..., 2]
+
+  invalid_mask = (y < SMALL_COMPONENT_VALUE).astype(np.float32)
+  valid_mask = 1.0 - invalid_mask
+
+  y = invalid_mask + valid_mask * y
+  norm = Y / y
+
+  X = x * norm
+  Z = (1 - x - y) * norm
+
+  X *= valid_mask
+  Y *= valid_mask
+  Z *= valid_mask
+
+  return np.stack([X, Y, Z], axis=-1)
+
+
 def point_or_points_or_image_wrapper(func):
   '''
   a decorated function will be called with reshaped input and output to support
