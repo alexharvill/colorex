@@ -52,6 +52,9 @@ class TestColorexKeras(unittest.TestCase):
     srgb2 = skimage.color.xyz2rgb(xyz)
     srgb3 = skimage.color.lab2rgb(lab)
 
+    xyy = cex_numpy.xyz_to_xyy(xyz)
+    xyz3 = cex_numpy.xyy_to_xyz(xyy)
+
     for s_from, s_to, source, target in [
         (S.RGB, S.SRGB, rgb, srgb),
         (S.SRGB, S.RGB, srgb, rgb),
@@ -61,6 +64,8 @@ class TestColorexKeras(unittest.TestCase):
         (S.XYZ, S.SRGB, xyz, srgb2),
         (S.LAB, S.XYZ, lab, xyz2),
         (S.LAB, S.SRGB, lab, srgb3),
+        (S.XYZ, S.xyY, xyz, xyy),
+        (S.xyY, S.XYZ, xyy, xyz3),
     ]:
       x = cex_keras.keras.layers.Input(
           batch_shape=(None, None, None, 3),
@@ -120,3 +125,20 @@ class TestColorexKeras(unittest.TestCase):
 
       mse = np.array(r.history['mean_squared_error'])
       assert np.isfinite(mse.mean())
+
+  def test_cex_numpy_xyz_to_xyy(self):
+    'check numpy xyz<>xyy roundtrip'
+    cube_size = 16
+    H = W = 64
+    N = cube_size**3
+    assert N == H * W
+    int_cube = np.array(np.mgrid[:cube_size, :cube_size, :cube_size]).T
+    rgb = int_cube.astype(np.float32)
+    rgb /= float(cube_size - 1)
+    rgb = rgb.reshape((H, W, 3))
+
+    xyz = cex_numpy.rgb_to_xyz(rgb)
+    xyy = cex_numpy.xyz_to_xyy(xyz)
+    xyz2 = cex_numpy.xyy_to_xyz(xyy)
+
+    assert np.allclose(xyz, xyz2)
