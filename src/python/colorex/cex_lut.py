@@ -26,7 +26,7 @@ import itertools
 # Dependency imports
 import numpy as np
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from tensorflow_probability.python.internal import dtype_util
 from tensorflow_probability.python.internal import prefer_static
@@ -221,8 +221,15 @@ def nd_lookup_table(
         batch_dims=tf.get_static_value(tf.rank(x)) - 2)
 
 
-def _batch_interp_with_gather_nd(x, x_ref_min, x_ref_max, y_ref, nd, fill_value,
-                                 batch_dims):
+def _batch_interp_with_gather_nd(
+    x,
+    x_ref_min,
+    x_ref_max,
+    y_ref,
+    nd,
+    fill_value,
+    batch_dims,
+):
   '''N-D interpolation that works with leading batch dims.'''
   dtype = x.dtype
 
@@ -335,18 +342,26 @@ def _batch_interp_with_gather_nd(x, x_ref_min, x_ref_max, y_ref, nd, fill_value,
     # Gather from t and s along the 'nd' axis, which is rank(x) - 1.
     ov_axis = tf.rank(x) - 1
     opposite_volume = (tf.reduce_prod(
-        tf.gather(t,
-                  indices=tf.cast(opposite_volume_t_idx, dtype=tf.int32),
-                  axis=ov_axis),
-        axis=ov_axis) * tf.reduce_prod(tf.gather(
+        tf.gather(
+            t,
+            indices=tf.cast(opposite_volume_t_idx, dtype=tf.int32),
+            axis=ov_axis,
+        ),
+        axis=ov_axis,
+    ) * tf.reduce_prod(
+        tf.gather(
             s,
             indices=tf.cast(opposite_volume_s_idx, dtype=tf.int32),
-            axis=ov_axis),
-                                       axis=ov_axis))  # pyformat: disable
+            axis=ov_axis,
+        ),
+        axis=ov_axis,
+    ))
 
-    y_ref_pt = tf.gather_nd(y_ref,
-                            tf.stack(gather_from_y_ref_idx, axis=-1),
-                            batch_dims=batch_dims)
+    y_ref_pt = tf.gather_nd(
+        y_ref,
+        tf.stack(gather_from_y_ref_idx, axis=-1),
+        batch_dims=batch_dims,
+    )
 
     terms.append(y_ref_pt * opposite_volume)
 
@@ -356,8 +371,10 @@ def _batch_interp_with_gather_nd(x, x_ref_min, x_ref_max, y_ref, nd, fill_value,
     # Recall x_idx_unclipped.shape = [D, nd],
     # so here we check if it was out of bounds in any of the nd dims.
     # Thus, oob_idx.shape = [D].
-    oob_idx = tf.reduce_any((x_idx_unclipped < 0) | (x_idx_unclipped > ny - 1),
-                            axis=-1)
+    oob_idx = tf.reduce_any(
+        (x_idx_unclipped < 0) | (x_idx_unclipped > ny - 1),
+        axis=-1,
+    )
 
     # Now, y.shape = [D, B1,...,BM], so we'll have to broadcast oob_idx.
 
@@ -367,10 +384,12 @@ def _batch_interp_with_gather_nd(x, x_ref_min, x_ref_max, y_ref, nd, fill_value,
   return y
 
 
-def _assert_ndims_statically(x,
-                             expect_ndims=None,
-                             expect_ndims_at_least=None,
-                             expect_static=False):
+def _assert_ndims_statically(
+    x,
+    expect_ndims=None,
+    expect_ndims_at_least=None,
+    expect_static=False,
+):
   '''Assert that Tensor x has expected number of dimensions.'''
   ndims = tensorshape_util.rank(x.shape)
   if ndims is None:
@@ -399,18 +418,22 @@ def _make_expand_x_fn_for_non_batch_interpolation(y_ref, axis):
     '''Expand x so it can bcast w/ tensors of output shape.'''
     # Assume out_shape = A + x.shape + B, and rank(A) = axis.
     # Expand with singletons with same rank as A, B.
-    expanded_shape = tf.pad(tensor=tf.shape(x),
-                            paddings=[[axis, tf.size(y_ref_shape_right)]],
-                            constant_values=1)
+    expanded_shape = tf.pad(
+        tensor=tf.shape(x),
+        paddings=[[axis, tf.size(y_ref_shape_right)]],
+        constant_values=1,
+    )
     x_expanded = tf.reshape(x, expanded_shape)
 
     if broadcast:
-      out_shape = tf.concat((
-          y_ref_shape_left,
-          tf.shape(x),
-          y_ref_shape_right,
-      ),
-                            axis=0)
+      out_shape = tf.concat(
+          (
+              y_ref_shape_left,
+              tf.shape(x),
+              y_ref_shape_right,
+          ),
+          axis=0,
+      )
       if dtype_util.is_bool(x.dtype):
         x_expanded = x_expanded | tf.cast(tf.zeros(out_shape), tf.bool)
       else:
