@@ -1,3 +1,6 @@
+# Modifications Copyright 2021 Alex Harvill
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright 2018 The TensorFlow Probability Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,12 +43,20 @@ def color_lookup_table(
     x_ref_min,
     x_ref_max,
     y_ref,
-    axis,
+    axis=-4,
     fill_value='constant_extension',
     name=None,
 ):
   '''
-  apply a batch of 3d lookup tables to a batch of colors
+  apply a batch of 3d lookup tables to a batch of color tensors.
+  the following shapes are expected to work:
+    N: batch size
+    D: lookup table cube size ( lut total element count is D*D*D*3 )
+    HW: number of colors in a batch ( probably flattened image height*width )
+    x: shape [N,HW,3]
+    x_ref_min: shape [N,3]
+    x_ref_max: shape [N,3]
+    y_ref: shape [N,D,D,D,3]
   '''
 
   with tf.name_scope(name or 'color_lookup_table'):
