@@ -13,7 +13,7 @@
 # limitations under the License.
 # ============================================================================
 '''
-Lookup table ops forked and modified from:
+Color lookup table op forked and modified from:
 https://github.com/tensorflow/probability/tree/master/tensorflow_probability/python/math/interpolation.py
 '''
 
@@ -32,10 +32,10 @@ from tensorflow_probability.python.internal import dtype_util
 from tensorflow_probability.python.internal import prefer_static
 from tensorflow_probability.python.internal import tensorshape_util
 
-__all__ = ['nd_lookup_table']
+__all__ = ['color_lookup_table']
 
 
-def nd_lookup_table(
+def color_lookup_table(
     x,
     x_ref_min,
     x_ref_max,
@@ -44,97 +44,11 @@ def nd_lookup_table(
     fill_value='constant_extension',
     name=None,
 ):
-  '''Multi-linear interpolation on a regular (constant spacing) grid.
-
-  Given [a batch of] reference values, this function computes a multi-linear
-  interpolant and evaluates it on [a batch of] of new `x` values.
-
-  The interpolant is built from reference values indexed by `nd` dimensions
-  of `y_ref`, starting at `axis`.
-
-  For example, take the case of a `2-D` scalar valued function and no leading
-  batch dimensions.  In this case, `y_ref.shape = [C1, C2]` and `y_ref[i, j]`
-  is the reference value corresponding to grid point
-
-  ```
-  [x_ref_min[0] + i * (x_ref_max[0] - x_ref_min[0]) / (C1 - 1),
-   x_ref_min[1] + j * (x_ref_max[1] - x_ref_min[1]) / (C2 - 1)]
-  ```
-
-  In the general case, dimensions to the left of `axis` in `y_ref` are broadcast
-  with leading dimensions in `x`, `x_ref_min`, `x_ref_max`.
-
-  Args:
-    x: Numeric `Tensor` The x-coordinates of the interpolated output values for
-      each batch.  Shape `[..., D, nd]`, designating [a batch of] `D`
-      coordinates in `nd` space.  `D` must be `>= 1` and is not a batch dim.
-    x_ref_min:  `Tensor` of same `dtype` as `x`.  The minimum values of the
-      (implicitly defined) reference `x_ref`.  Shape `[..., nd]`.
-    x_ref_max:  `Tensor` of same `dtype` as `x`.  The maximum values of the
-      (implicitly defined) reference `x_ref`.  Shape `[..., nd]`.
-    y_ref:  `Tensor` of same `dtype` as `x`.  The reference output values. Shape
-      `[..., C1, ..., Cnd, B1,...,BM]`, designating [a batch of] reference
-      values indexed by `nd` dimensions, of a shape `[B1,...,BM]` valued
-      function (for `M >= 0`).
-    axis:  Scalar integer `Tensor`.  Dimensions `[axis, axis + nd)` of `y_ref`
-      index the interpolation table.  E.g. `3-D` interpolation of a scalar
-      valued function requires `axis=-3` and a `3-D` matrix valued function
-      requires `axis=-5`.
-    fill_value:  Determines what values output should take for `x` values that
-      are below `x_ref_min` or above `x_ref_max`. Scalar `Tensor` or
-      'constant_extension' ==> Extend as constant function.
-      Default value: `'constant_extension'`
-    name:  A name to prepend to created ops.
-      Default value: `'batch_interp_regular_nd_grid'`.
-
-  Returns:
-    y_interp:  Interpolation between members of `y_ref`, at points `x`.
-      `Tensor` of same `dtype` as `x`, and shape `[..., D, B1, ..., BM].`
-
-  Raises:
-    ValueError:  If `rank(x) < 2` is determined statically.
-    ValueError:  If `axis` is not a scalar is determined statically.
-    ValueError:  If `axis + nd > rank(y_ref)` is determined statically.
-
-  #### Examples
-
-  Interpolate a function of one variable.
-
-  ```python
-  y_ref = tf.exp(tf.linspace(start=0., stop=10., num=20))
-
-  tfp.math.batch_interp_regular_nd_grid(
-      # x.shape = [3, 1], x_ref_min/max.shape = [1].  Trailing `1` for `1-D`.
-      x=[[6.0], [0.5], [3.3]], x_ref_min=[0.], x_ref_max=[10.], y_ref=y_ref,
-      axis=0)
-  ==> approx [exp(6.0), exp(0.5), exp(3.3)]
-  ```
-
-  Interpolate a scalar function of two variables.
-
-  ```python
-  x_ref_min = [0., 0.]
-  x_ref_max = [2 * np.pi, 2 * np.pi]
-
-  # Build y_ref.
-  x0s, x1s = tf.meshgrid(
-      tf.linspace(x_ref_min[0], x_ref_max[0], num=100),
-      tf.linspace(x_ref_min[1], x_ref_max[1], num=100),
-      indexing='ij')
-
-  def func(x0, x1):
-    return tf.sin(x0) * tf.cos(x1)
-
-  y_ref = func(x0s, x1s)
-
-  x = np.pi * tf.random.uniform(shape=(10, 2))
-
-  tfp.math.batch_interp_regular_nd_grid(x, x_ref_min, x_ref_max, y_ref, axis=-2)
-  ==> tf.sin(x[:, 0]) * tf.cos(x[:, 1])
-  ```
-
   '''
-  with tf.name_scope(name or 'interp_regular_nd_grid'):
+  apply a batch of 3d lookup tables to a batch of colors
+  '''
+
+  with tf.name_scope(name or 'color_lookup_table'):
     dtype = dtype_util.common_dtype([x, x_ref_min, x_ref_max, y_ref],
                                     dtype_hint=tf.float32)
 
@@ -178,38 +92,15 @@ def nd_lookup_table(
     # Convert axis and check it statically.
     axis = tf.convert_to_tensor(axis, dtype=tf.int32, name='axis')
     axis = prefer_static.non_negative_axis(axis, tf.rank(y_ref))
-    tensorshape_util.assert_has_rank(axis.shape, 0)
-    axis_ = tf.get_static_value(axis)
-    y_ref_rank_ = tf.get_static_value(tf.rank(y_ref))
-    if axis_ is not None and y_ref_rank_ is not None:
-      if axis_ + nd > y_ref_rank_:
-        raise ValueError(
-            'Since dims `[axis, axis + nd)` index the interpolation table, we '
-            'must have `axis + nd <= rank(y_ref)`.  Found: '
-            '`axis`: {},  rank(y_ref): {}, and inferred `nd` from trailing '
-            'dimensions of `x_ref_min` to be {}.'.format(
-                axis_, y_ref_rank_, nd))
 
-    x_batch_shape = tf.shape(x)[:-2]
-    x_ref_min_batch_shape = tf.shape(x_ref_min)[:-1]
-    x_ref_max_batch_shape = tf.shape(x_ref_max)[:-1]
-    y_ref_batch_shape = tf.shape(y_ref)[:axis]
+    batch_dims = tf.get_static_value(tf.rank(x)) - 2
 
-    # Do a brute-force broadcast of batch dims (add zeros).
-    batch_shape = y_ref_batch_shape
-    for tensor in [x_batch_shape, x_ref_min_batch_shape, x_ref_max_batch_shape]:
-      batch_shape = tf.broadcast_dynamic_shape(batch_shape, tensor)
+    assert batch_dims == 1, 'only 1 batch dimension supported'
+    assert nd == 3, 'only 3 color components tested'
 
-    def _batch_of_zeros_with_rightmost_singletons(n_singletons):
-      '''Return Tensor of zeros with some singletons on the rightmost dims.'''
-      ones = tf.ones(shape=[n_singletons], dtype=tf.int32)
-      return tf.zeros(shape=tf.concat([batch_shape, ones], axis=0), dtype=dtype)
-
-    x += _batch_of_zeros_with_rightmost_singletons(n_singletons=2)
-    x_ref_min += _batch_of_zeros_with_rightmost_singletons(n_singletons=1)
-    x_ref_max += _batch_of_zeros_with_rightmost_singletons(n_singletons=1)
-    y_ref += _batch_of_zeros_with_rightmost_singletons(
-        n_singletons=tf.rank(y_ref) - axis)
+    assert x.shape[0] == x_ref_min.shape[0], 'unequal batch dimensions'
+    assert x.shape[0] == x_ref_max.shape[0], 'unequal batch dimensions'
+    assert x.shape[0] == y_ref.shape[0], 'unequal batch dimensions'
 
     return _batch_interp_with_gather_nd(
         x=x,
@@ -218,7 +109,8 @@ def nd_lookup_table(
         y_ref=y_ref,
         nd=nd,
         fill_value=fill_value,
-        batch_dims=tf.get_static_value(tf.rank(x)) - 2)
+        batch_dims=batch_dims,
+    )
 
 
 def _batch_interp_with_gather_nd(
@@ -230,7 +122,10 @@ def _batch_interp_with_gather_nd(
     fill_value,
     batch_dims,
 ):
-  '''N-D interpolation that works with leading batch dims.'''
+  '''
+  N-D interpolation that works with leading batch dims.
+  reformatted duplicate of tfp.math._batch_interp_regular_nd_grid
+  '''
   dtype = x.dtype
 
   # In this function,
