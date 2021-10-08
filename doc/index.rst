@@ -20,6 +20,9 @@ Python module for color utilities in keras.
    :caption: colorex
 
    cex_constants
+   cex_keras
+   cex_lut
+   cex_numpy
 
 
 

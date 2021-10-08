@@ -15,7 +15,7 @@ import os
 import sys
 import unittest.mock
 
-MOCK_MODULES = ['numpy', 'tensorflow']
+MOCK_MODULES = ['tensorflow']
 for mod_name in MOCK_MODULES:
   sys.modules[mod_name] = unittest.mock.Mock()
 
