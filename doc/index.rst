@@ -9,8 +9,6 @@ colorex
 
 Copyright (c) 2021 Alex Harvill.  All rights reserved.
 
-Python module for color utilities in keras.
-
 `colorex
 <https://github.com/alexharvill/colorex>`_ is primarily intended to contain color transformations that should exist in keras but don't.
 
