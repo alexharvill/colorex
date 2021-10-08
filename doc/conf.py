@@ -15,7 +15,12 @@ import os
 import sys
 import unittest.mock
 
-MOCK_MODULES = ['tensorflow']
+MOCK_MODULES = [
+    'tensorflow',
+    'tensorflow.keras',
+    'tensorflow.keras.backend',
+    'tensorflow_probability.python.internal',
+]
 for mod_name in MOCK_MODULES:
   sys.modules[mod_name] = unittest.mock.Mock()
 
